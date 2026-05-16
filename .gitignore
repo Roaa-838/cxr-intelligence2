@@ -71,6 +71,18 @@ clip_index.pkl
 *.log
 logs/
 
+
+data.zip
+data/
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+results/
+clip_cache/
+faiss_index/
+__pycache__/
+
 # Coverage
 .coverage
 htmlcov/
