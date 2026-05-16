@@ -1,4 +1,4 @@
-# 🫁 Multi-Modal Chest X-Ray Intelligence System
+#  Multi-Modal Chest X-Ray Intelligence System
 
 A dual-mode medical AI system for chest radiograph interpretation:
 - **Mode 1 — Report Generation**: Upload a CXR image → get a structured radiology report

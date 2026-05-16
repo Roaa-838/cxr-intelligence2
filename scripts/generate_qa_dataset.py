@@ -170,7 +170,17 @@ def main():
         if "split" in df.columns:
             df = df[df["split"] == args.split]
         df = df.dropna(subset=["text"]).head(args.n_samples)
-        reports = df[["study_id", "text"] + (["image"] if "image" in df.columns else [])].to_dict("records")
+        required_cols = ["text"]
+
+        if "study_id" in df.columns:
+            required_cols.insert(0, "study_id")
+        elif "id" in df.columns:
+            required_cols.insert(0, "id")
+
+        if "image" in df.columns:
+            required_cols.append("image")
+
+        reports = df[required_cols].to_dict("records")
         logger.info("Loaded %d reports from %s split.", len(reports), args.split)
 
     # ── Generate QA ───────────────────────────────────────────────────────────

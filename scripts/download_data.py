@@ -161,47 +161,137 @@ def resolve_image(val: str, raw_dir: Path, lookup: dict) -> Path | None:
     return None
 
 
+def resolve_image_direct(val, raw_dir: Path):
+    """
+    Resolve an image path from the CSV image column.
+    The MIMIC-CXR Kaggle dataset stores paths like:
+      official_data_iccv_final/p10/p10000032/s50414267/02aa804e-xxx.jpg
+    We try raw_dir / val directly first (most reliable).
+    """
+    if val is None:
+        return None
+    import math
+    if isinstance(val, float) and math.isnan(val):
+        return None
+    val = str(val).strip()
+    if not val or val.lower() == "nan":
+        return None
+
+    # Strategy 1: relative to raw_dir (handles official_data_iccv_final/... paths)
+    c = raw_dir / val
+    if c.exists():
+        return c
+
+    # Strategy 2: absolute path as-is
+    c = Path(val)
+    if c.exists():
+        return c
+
+    # Strategy 3: try appending common extensions
+    for ext in (".jpg", ".jpeg", ".png"):
+        c = raw_dir / (val + ext)
+        if c.exists():
+            return c
+
+    return None
+
+
 def build_processed_csv(best_csv, raw_dir, output_dir, n_train, n_test):
+    """
+    Load train + validate CSVs, resolve image paths, write metadata.csv.
+
+    MIMIC-CXR Kaggle dataset structure:
+      mimic_cxr_aug_train.csv    -> training data
+      mimic_cxr_aug_validate.csv -> split 50/50 into validate + test
+      Images: raw_dir/official_data_iccv_final/<patient>/<study>/<image>.jpg
+      The 'image' column contains the relative path from raw_dir.
+    """
     logger.info("")
     logger.info("=== BUILDING PROCESSED DATASET ===")
-    df = pd.read_csv(best_csv)
-    logger.info("Loaded %d rows from %s", len(df), best_csv.name)
-    df = normalise_df(df)
+    csv_dir = best_csv.parent
+    all_dfs = []
+
+    # Load train CSV
+    train_csv = csv_dir / "mimic_cxr_aug_train.csv"
+    if train_csv.exists():
+        _df = pd.read_csv(train_csv)
+        _df = normalise_df(_df)
+        _df["split"] = "train"
+        logger.info("Loaded train CSV: %d rows", len(_df))
+        all_dfs.append(_df)
+
+    # Load validate CSV — split it 50/50 into validate and test
+    val_csv = csv_dir / "mimic_cxr_aug_validate.csv"
+    if val_csv.exists():
+        _df = pd.read_csv(val_csv)
+        _df = normalise_df(_df)
+        _df = _df.sample(frac=1, random_state=42).reset_index(drop=True)
+        half = len(_df) // 2
+        _df["split"] = "test"
+        _df.iloc[:half, _df.columns.get_loc("split")] = "validate"
+        logger.info("Loaded validate CSV: %d rows (split 50%% validate / 50%% test)", len(_df))
+        all_dfs.append(_df)
+
+    if not all_dfs:
+        # Fallback: just use best_csv
+        _df = pd.read_csv(best_csv)
+        _df = normalise_df(_df)
+        all_dfs.append(_df)
+
+    df = pd.concat(all_dfs, ignore_index=True)
+    logger.info("Combined: %d rows total", len(df))
 
     if "text" not in df.columns:
         logger.error("No report column. Columns: %s", list(df.columns))
-        logger.error("Add your column name to REPORT_COLS in download_data.py")
-        raise ValueError("No report column found")
+        raise ValueError("No report column found. Check REPORT_COLS in download_data.py.")
 
     df = df[df["text"].notna() & (df["text"].str.strip().str.len() > 20)]
-    logger.info("After filter: %d rows with non-empty reports", len(df))
+    logger.info("After dropping empty reports: %d rows", len(df))
 
-    lookup = build_image_lookup(raw_dir)
+    # ── Resolve image paths ─────────────────────────────────────────────────
+    # The 'image' column contains filename stems or basenames.
+    # We build a full filename→path lookup by walking the raw dir tree,
+    # then match each row's image value by stem, name, or last-2-path-parts.
     image_col = "image" if "image" in df.columns else None
+
+    # Save original image values BEFORE any overwrite
+    orig_vals = df[image_col].copy() if image_col else pd.Series([""] * len(df))
+
+    # Build lookup from all image files in raw_dir
+    lookup = build_image_lookup(raw_dir)   # stem->Path, name->Path, dir/name->Path
 
     resolved = []
     missing  = 0
-    for _, row in df.iterrows():
-        val  = str(row.get(image_col, "")) if image_col else ""
+    n_rows   = len(df)
+    logger.info("Resolving %d image paths with lookup (%d keys) ...", n_rows, len(lookup))
+
+    for i, val in enumerate(orig_vals):
         path = resolve_image(val, raw_dir, lookup)
         resolved.append(str(path.resolve()) if path else "")
         if not path:
             missing += 1
+        if (i + 1) % 20000 == 0:
+            logger.info("  Progress: %d / %d resolved ...", i + 1 - missing, i + 1)
 
     df["image"]      = resolved
     df["image_path"] = resolved
 
-    n_with = sum(1 for p in resolved if p)
-    logger.info("Images resolved: %d / %d  (missing=%d)", n_with, len(df), missing)
-
-    if missing > len(df) * 0.5:
+    n_with = len(resolved) - missing
+    logger.info(
+        "Images resolved: %d / %d (missing=%d, %.1f%%)",
+        n_with, n_rows, missing, 100.0 * missing / max(n_rows, 1),
+    )
+    if missing > 0 and n_with == 0:
+        sample_orig = orig_vals.dropna().head(3).tolist()
         logger.warning(
-            "Over 50%% of images could not be resolved. "
-            "Check that image filenames in the CSV match actual files in %s", raw_dir
+            "0 images resolved. Sample image column values: %s. "
+            "These values will be matched against filenames inside %s",
+            sample_orig, raw_dir,
         )
 
+    # Ensure split column exists
     if "split" not in df.columns:
-        logger.info("Creating 80/10/10 train/validate/test split ...")
+        logger.info("Creating 80/10/10 split ...")
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
         n = len(df)
         df["split"] = "train"
@@ -209,9 +299,10 @@ def build_processed_csv(best_csv, raw_dir, output_dir, n_train, n_test):
         df.iloc[int(n*0.9):,           df.columns.get_loc("split")] = "test"
 
     for spl, grp in df.groupby("split"):
-        with_img = (grp["image"] != "").sum()
-        logger.info("  %-12s %5d rows | %d with images", spl, len(grp), with_img)
+        wi = (grp["image"] != "").sum()
+        logger.info("  %-12s %5d rows | %d with images", spl, len(grp), wi)
 
+    # Subsample if requested (stratified by split)
     if n_train or n_test:
         parts = []
         for spl, grp in df.groupby("split"):
@@ -225,7 +316,7 @@ def build_processed_csv(best_csv, raw_dir, output_dir, n_train, n_test):
     output_dir.mkdir(parents=True, exist_ok=True)
     out = output_dir / "metadata.csv"
     df.to_csv(out, index=False, encoding="utf-8")
-    logger.info("Saved -> %s", out)
+    logger.info("Saved -> %s  (%d rows)", out, len(df))
     return out
 
 

@@ -66,7 +66,7 @@ def _open_image(path_str: str):
     """Open an image at an absolute path. Returns PIL Image or None."""
     from PIL import Image as _PIL
     p = Path(path_str)
-    if not p.exists():
+    if not p.exists() or not p.is_file():
         return None
     try:
         return _PIL.open(p).convert("RGB")

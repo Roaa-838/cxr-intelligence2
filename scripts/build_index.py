@@ -225,6 +225,14 @@ def main():
 
     logger.info("Loaded %d studies for indexing.", len(studies))
 
+    if len(studies) == 0:
+        logger.error(
+            "0 studies with resolvable images. "
+            "Run:  python scripts/download_data.py --no-download  "
+            "to rebuild metadata.csv with correct image_path values, then retry."
+        )
+        sys.exit(1)
+
     if args.model in ("clip", "both"):
         build_clip_index(
             studies, output_dir,

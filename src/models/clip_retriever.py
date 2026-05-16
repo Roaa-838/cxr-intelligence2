@@ -195,6 +195,10 @@ class CLIPRetriever(BaseRetriever):
             dim = self.SUPPORTED_MODELS.get(self._model_name, {}).get("embedding_dim", 512)
             return np.random.randn(len(images), dim).astype(np.float32)
 
+        if len(images) == 0:
+            dim = self.SUPPORTED_MODELS.get(self._model_name, {}).get("embedding_dim", 512)
+            return np.zeros((0, dim), dtype=np.float32)
+
         all_embeddings: list[np.ndarray] = []
         for i in range(0, len(images), batch_size):
             batch = images[i: i + batch_size]
@@ -205,7 +209,7 @@ class CLIPRetriever(BaseRetriever):
             feats = F.normalize(feats.float(), dim=-1).cpu().numpy()
             all_embeddings.append(feats)
             if (i // batch_size) % 10 == 0:
-                logger.info("Embedded %d / %d images …", min(i + batch_size, len(images)), len(images))
+                logger.info("Embedded %d / %d images ...", min(i + batch_size, len(images)), len(images))
 
         return np.concatenate(all_embeddings, axis=0)
 
