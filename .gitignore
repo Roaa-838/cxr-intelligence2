@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Environment secrets
+.env
+*.env.local
+
+# Data (never commit patient data)
+data/mimic-cxr/
+data/processed/
+data/index/
+data/qa_dataset.json
+data/sample/*.jpg
+data/sample/*.png
+
+# Model checkpoints (large binary files)
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Results
+results/*.log
+results/*.json
+results/*.csv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Gradio
+gradio_cached_examples/
+flagged/
+
+# HuggingFace cache
+~/.cache/huggingface/
+
+# FAISS / Qdrant
+*.faiss
+qdrant_storage/
+
+# ColPali index files
+*.npy
+*.meta.pkl
+clip_index.pkl
+
+# Logs
+*.log
+logs/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+# Raw datasets
+data/mimic-cxr-raw/
+

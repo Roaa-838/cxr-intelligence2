@@ -1,0 +1,115 @@
+# configs/default.yaml
+# Central configuration file for the CXR Intelligence System
+
+# ── Data ─────────────────────────────────────────────────────────────────────
+data:
+  mimic_cxr_path: "./data/mimic-cxr"
+  processed_path: "./data/processed"
+  sample_path:    "./data/sample"
+  image_size: 448          # px — MedGemma native resolution
+  image_channels: 3        # RGB (CXR grayscale converted to RGB)
+  max_report_length: 512   # tokens
+  train_subset: 10000      # samples from train split
+  val_subset: 500
+  test_subset: 500
+
+# ── Models ───────────────────────────────────────────────────────────────────
+models:
+  medgemma:
+    model_id: "google/medgemma-4b-it"
+    model_id_v2: "google/medgemma-1.5-4b-it"
+    torch_dtype: "bfloat16"   # bfloat16 recommended for Ampere+ GPUs
+    use_4bit: false            # Enable for <8GB VRAM
+    use_8bit: false
+    max_new_tokens: 512
+    do_sample: false           # Greedy decoding for reproducibility
+    temperature: 1.0
+    repetition_penalty: 1.1
+
+  colpali:
+    model_id: "vidore/colpali-v1.2"
+    torch_dtype: "bfloat16"
+    embedding_dim: 128
+    n_patches: 1024            # 32x32 grid per image
+    top_k: 5                   # Retrieved documents per query
+
+  biomedclip:
+    model_id: "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+    embedding_dim: 512
+    top_k: 5
+
+  clip_baseline:
+    model_id: "ViT-L-14"
+    pretrained: "openai"
+    embedding_dim: 768
+    top_k: 5
+
+# ── Report Generation ────────────────────────────────────────────────────────
+report_generation:
+  prompt_template: "medgemma_report_v1"  # see src/models/prompts.py
+  include_findings: true
+  include_impression: true
+  section_separator: "\n\n"
+
+# ── RAG ──────────────────────────────────────────────────────────────────────
+rag:
+  vector_store: "qdrant"       # "qdrant" | "faiss"
+  index_path: "./data/index"
+  top_k: 5
+  score_threshold: 0.0         # Minimum similarity score to return
+  hybrid_alpha: 0.5            # Weight for image vs text similarity
+
+# ── Fine-tuning ──────────────────────────────────────────────────────────────
+finetune:
+  base_model: "google/medgemma-4b-it"
+  output_dir: "./checkpoints/medgemma-cxr-ft"
+  # LoRA config
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+  # Training
+  num_epochs: 3
+  batch_size: 4
+  gradient_accumulation_steps: 8   # effective batch = 32
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.05
+  lr_scheduler: "cosine"
+  fp16: false
+  bf16: true
+  save_steps: 500
+  eval_steps: 500
+  logging_steps: 50
+  max_seq_length: 2048
+
+# ── Evaluation ───────────────────────────────────────────────────────────────
+evaluation:
+  metrics:
+    - "bleu"
+    - "rouge"
+    - "bertscore"
+    - "radgraph_f1"
+  bertscore_model: "allenai/scibert_scivocab_uncased"
+  batch_size: 8
+  n_test_samples: 500
+
+# ── QA Dataset Generation ────────────────────────────────────────────────────
+qa_generation:
+  provider: "anthropic"        # "anthropic" | "openai"
+  model: "claude-3-5-haiku-20241022"
+  n_questions_per_study: 5
+  question_types:
+    - "presence"
+    - "location"
+    - "severity"
+    - "diagnosis"
+    - "comparison"
+  output_path: "./data/qa_dataset.json"
+  max_retries: 3
+  temperature: 0.7
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level: "INFO"
+  log_file: "./results/run.log"
+  results_dir: "./results"
