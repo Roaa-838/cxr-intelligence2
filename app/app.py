@@ -23,6 +23,10 @@ import sys
 import time
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import gradio as gr
 from PIL import Image
 
@@ -87,6 +91,7 @@ def generate_report(
         "MedGemma-4B (zero-shot)": "medgemma",
         "MedGemma-4B (fine-tuned)": "medgemma-ft",
         "BiomedCLIP + MedGemma (RAG)": "clip-rag",
+        "Real Report Retrieval (CLIP)": "clip-retrieval",
     }
     model_key = model_map.get(model_choice, "medgemma")
     if MOCK_MODE:
@@ -170,16 +175,29 @@ def answer_question(
 # ── Example CXR images ────────────────────────────────────────────────────────
 
 def _create_demo_images() -> list[str]:
-    """Generate placeholder demo images if no real CXRs are available."""
+    """Return paths to real CXR images from the dataset for demo examples."""
+    import pandas as pd
+    csv_path = Path(__file__).parent.parent / "data" / "processed" / "metadata.csv"
+    if csv_path.exists():
+        df = pd.read_csv(csv_path)
+        valid = df[df["image_path"].notna() & (df["split"] == "validate")]
+        if len(valid) >= 3:
+            return [str(p) for p in valid.iloc[:3]["image_path"]]
+    # Fallback: use raw data
+    raw_dir = Path(__file__).parent.parent / "data" / "mimic-cxr-raw" / "official_data_iccv_final" / "files" / "p10"
+    if raw_dir.exists():
+        jpgs = sorted(raw_dir.rglob("*.jpg"))
+        if len(jpgs) >= 3:
+            return [str(p) for p in jpgs[:3]]
+    # Last resort: generate synthetic
     import numpy as np
     sample_dir = Path("app/assets/sample_images")
     sample_dir.mkdir(parents=True, exist_ok=True)
     paths = []
     for i in range(3):
         p = sample_dir / f"demo_{i}.jpg"
-        if not p.exists():
-            arr = np.random.randint(30, 200, (448, 448), dtype=np.uint8)
-            Image.fromarray(arr).convert("RGB").save(str(p))
+        arr = np.random.randint(30, 200, (448, 448), dtype=np.uint8)
+        Image.fromarray(arr).convert("RGB").save(str(p))
         paths.append(str(p))
     return paths
 
@@ -192,15 +210,6 @@ def build_app() -> gr.Blocks:
 
     with gr.Blocks(
         title="CXR Intelligence System",
-        theme=gr.themes.Soft(
-            primary_hue="blue",
-            secondary_hue="cyan",
-        ),
-        css="""
-        .header { text-align: center; padding: 10px; }
-        .badge  { font-size: 0.85em; color: #666; }
-        footer  { display: none !important; }
-        """,
     ) as demo:
 
         # ── Header ────────────────────────────────────────────────────────────
@@ -229,11 +238,12 @@ def build_app() -> gr.Blocks:
                         )
                         model_rg = gr.Dropdown(
                             choices=[
+                                "Real Report Retrieval (CLIP)",
                                 "MedGemma-4B (zero-shot)",
                                 "MedGemma-4B (fine-tuned)",
                                 "BiomedCLIP + MedGemma (RAG)",
                             ],
-                            value="MedGemma-4B (zero-shot)",
+                            value="Real Report Retrieval (CLIP)",
                             label="Model",
                         )
                         prompt_style = gr.Dropdown(
@@ -262,12 +272,13 @@ def build_app() -> gr.Blocks:
                             placeholder="Clinical summary and key conclusions …",
                         )
                         meta_out = gr.JSON(label="Metadata", visible=False)
-                        gr.Checkbox(
+                        show_meta = gr.Checkbox(
                             label="Show metadata",
                             value=False,
-                        ).change(
+                        )
+                        show_meta.change(
                             lambda show: gr.update(visible=show),
-                            inputs=gr.Checkbox(value=False),
+                            inputs=show_meta,
                             outputs=meta_out,
                         )
 
@@ -440,6 +451,15 @@ def main():
         server_name=args.host,
         server_port=args.port,
         share=args.share,
+        theme=gr.themes.Soft(
+            primary_hue="blue",
+            secondary_hue="cyan",
+        ),
+        css="""
+        .header { text-align: center; padding: 10px; }
+        .badge  { font-size: 0.85em; color: #666; }
+        footer  { display: none !important; }
+        """,
     )
 
 

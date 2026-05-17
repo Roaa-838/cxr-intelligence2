@@ -119,7 +119,7 @@ class ReportGenerationPipeline:
     SUPPORTED_MODELS = frozenset({
         "medgemma", "medgemma-ft",
         "clip-rag", "colpali-rag",
-        "mock",
+        "clip-retrieval", "mock",
     })
 
     def __init__(
@@ -150,11 +150,12 @@ class ReportGenerationPipeline:
         """
         logger.info("Loading pipeline  model=%s  mock=%s", self.model_name, self.mock)
         loader = {
-            "mock":        self._load_mock,
-            "medgemma":    self._load_medgemma,
-            "medgemma-ft": self._load_medgemma,
-            "clip-rag":    self._load_clip_rag,
-            "colpali-rag": self._load_colpali_rag,
+            "mock":           self._load_mock,
+            "medgemma":       self._load_medgemma,
+            "medgemma-ft":    self._load_medgemma,
+            "clip-rag":       self._load_clip_rag,
+            "colpali-rag":    self._load_colpali_rag,
+            "clip-retrieval": self._load_clip_retrieval,
         }[self.model_name if not self.mock else "mock"]
         loader()
         self._is_ready = True
@@ -214,6 +215,17 @@ class ReportGenerationPipeline:
             use_4bit=self.cfg.get("models", {}).get("medgemma", {}).get("use_4bit", False)
         )
         logger.info("ColPali-RAG ready.")
+
+    def _load_clip_retrieval(self) -> None:
+        """Load CLIP retriever with index for real report retrieval (no generation)."""
+        from ..models.clip_retriever import CLIPRetriever
+        self._retriever = CLIPRetriever.load(model_name="biomedclip", device="cpu")
+        index_path = Path(self.cfg.get("rag", {}).get("index_path", "data/index")) / "clip_index.pkl"
+        if index_path.exists():
+            self._retriever.load_index(index_path)
+            logger.info("CLIP retrieval index loaded: %d entries", self._retriever.index_size)
+        else:
+            logger.warning("CLIP index not found at %s", index_path)
 
     def _try_load_index(self, kind: str) -> None:
         base = Path(self.cfg.get("rag", {}).get("index_path", "data/index"))
@@ -294,7 +306,9 @@ class ReportGenerationPipeline:
 
         t0 = time.time()
         try:
-            if self.model_name in ("clip-rag", "colpali-rag") and not self.mock:
+            if self.model_name == "clip-retrieval" and not self.mock:
+                raw_result, ctx, ids = self._generate_retrieval_report(image, top_k)
+            elif self.model_name in ("clip-rag", "colpali-rag") and not self.mock:
                 raw_result, ctx, ids = self._generate_rag(
                     image, prompt_template, top_k, max_new_tokens
                 )
@@ -450,6 +464,27 @@ class ReportGenerationPipeline:
             max_new_tokens=max_new_tokens,
         )
         return raw_result, context, retrieved_ids
+
+    def _generate_retrieval_report(
+        self,
+        image: Image.Image,
+        top_k: int,
+    ) -> tuple[dict, str, list[str]]:
+        """Retrieve real reports from the most similar cases in the index."""
+        retrieved = self._retriever.retrieve(query_image=image, top_k=top_k)
+        if not retrieved:
+            return {"findings": "", "impression": "", "raw": "No similar cases found."}, "", []
+
+        best = retrieved[0]
+        report_text = best.get("report", best.get("findings", ""))
+        if isinstance(report_text, list):
+            report_text = " ".join(str(r) for r in report_text)
+        impression = best.get("impression", "")
+        findings = best.get("findings", "")
+        study_id = best.get("study_id", "unknown")
+
+        logger.info("CLIP retrieval: best match %s (score=%.3f)", study_id, best.get("score", 0))
+        return {"findings": findings or report_text, "impression": impression, "raw": report_text}, report_text, [study_id]
 
     # ── Static utilities ──────────────────────────────────────────────────────
 

@@ -101,7 +101,7 @@ class MedGemmaModel(BaseVLM):
           2. 4-bit NF4 CPU-only
           3. float16 CPU full-precision
         """
-        from transformers import AutoProcessor, AutoModelForImageTextToText
+        from transformers import AutoProcessor, AutoModelForImageTextToText, BitsAndBytesConfig
 
         logger.info("Loading MedGemma processor: %s", self.model_id)
         self._processor = AutoProcessor.from_pretrained(self.model_id, token=token)
@@ -285,12 +285,9 @@ class MedGemmaModel(BaseVLM):
             text=prompt_str, images=image, return_tensors="pt",
         )
 
-        # Move to primary device (handles GPU+CPU offload models)
-        try:
-            primary = self._get_model_device()
-            inputs  = inputs.to(primary)
-        except Exception:
-            pass
+        # Move to model device explicitly
+        model_device = self._get_model_device()
+        inputs = {k: v.to(model_device) for k, v in inputs.items()}
 
         input_len = inputs["input_ids"].shape[-1]
 
