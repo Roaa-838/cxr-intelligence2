@@ -1,0 +1,8 @@
+{
+  "models": {
+    "medgemma": {},
+    "clip-rag": {}
+  },
+  "n_samples": 20,
+  "split": "test"
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "query": "study_0",
+    "retrieved_id": "study_0",
+    "score": "N/A",
+    "latency_s": 0.29,
+    "report_preview": "['Findings: There is no focal consolidation, pleural effusion or pneumothorax.  Bilateral nodular opacities that most likely represent nipple shadows. The cardiomediastinal silhouette is normal.  Clip"
+  },
+  {
+    "query": "study_1",
+    "retrieved_id": "study_1",
+    "score": "N/A",
+    "latency_s": 0.26,
+    "report_preview": "['Findings: PA and lateral views of the chest provided.   The lungs are adequately aerated.  There is a focal consolidation at the left lung base adjacent to the lateral hemidiaphragm. There is mild v"
+  },
+  {
+    "query": "study_2",
+    "retrieved_id": "study_2",
+    "score": "N/A",
+    "latency_s": 0.27,
+    "report_preview": "['Findings: PA and lateral views of the chest provided.   Lung volumes are somewhat low. There is no focal consolidation, effusion, or pneumothorax. The cardiomediastinal silhouette is normal. Imaged "
+  }
+]

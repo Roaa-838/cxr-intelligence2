@@ -35,10 +35,6 @@ checkpoints/
 *.pt
 *.pth
 
-# Results
-results/*.log
-results/*.json
-results/*.csv
 
 # IDE
 .idea/
@@ -78,7 +74,7 @@ data/
 *.bin
 *.safetensors
 *.ckpt
-results/
+
 clip_cache/
 faiss_index/
 __pycache__/

@@ -1,0 +1,67 @@
+{
+  "metrics": {
+    "n_samples": 6,
+    "bleu_1": 0,
+    "bleu_2": 0,
+    "bleu_3": 0,
+    "bleu_4": 0,
+    "bleu_avg": 0.0,
+    "rouge_1": 0.0,
+    "rouge_2": 0.0,
+    "rouge_l": 0.0,
+    "bertscore_p": 0.0,
+    "bertscore_r": 0.0,
+    "bertscore_f1": 0.0,
+    "radgraph_f1": 0.0,
+    "radgraph_individual": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "radgraph_note": "heuristic_fallback",
+    "model": "mock",
+    "n_valid": 6,
+    "wall_time_s": 3.3
+  },
+  "samples": [
+    {
+      "study_id": "synth_00004",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synth_00009",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synth_00014",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synth_00019",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synth_00024",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synth_00029",
+      "generated": "ERROR: 'NoneType' object has no attribute 'convert'",
+      "reference": "FINDINGS:\nSmall left apical pneumothorax. Lungs otherwise clear. Heart normal.\n\nIMPRESSION:\nSmall left apical pneumothorax.",
+      "latency_s": 0.0
+    }
+  ]
+}

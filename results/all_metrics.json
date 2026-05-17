@@ -1,0 +1,76 @@
+{
+  "report_generation": {
+    "mock": {
+      "n_samples": 6,
+      "bleu_1": 0,
+      "bleu_2": 0,
+      "bleu_3": 0,
+      "bleu_4": 0,
+      "bleu_avg": 0.0,
+      "rouge_1": 0.0,
+      "rouge_2": 0.0,
+      "rouge_l": 0.0,
+      "bertscore_p": 0.0,
+      "bertscore_r": 0.0,
+      "bertscore_f1": 0.0,
+      "radgraph_f1": 0.0,
+      "radgraph_individual": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radgraph_note": "heuristic_fallback",
+      "model": "mock",
+      "n_valid": 6,
+      "wall_time_s": 3.3
+    }
+  },
+  "qa": {
+    "clip": {
+      "n_samples": 10,
+      "exact_match": 0.0,
+      "token_f1": 0.27085359085359084,
+      "rouge_l": 0.15314970487005825,
+      "rouge_1": 0.2511578685767054,
+      "bertscore_f1": 0.0,
+      "bertscore_p": 0.0,
+      "bertscore_r": 0.0,
+      "by_type": {
+        "diagnosis": {
+          "n": 1,
+          "exact_match": 0.0,
+          "token_f1": 0.15384615384615385
+        },
+        "presence": {
+          "n": 9,
+          "exact_match": 0.0,
+          "token_f1": 0.28385441718775056
+        }
+      },
+      "retriever": "clip",
+      "wall_time_s": 0.0
+    }
+  },
+  "args": {
+    "data_dir": "data/processed",
+    "qa_dataset": "data/qa_dataset.json",
+    "output_dir": "results",
+    "n_samples": 10,
+    "report_models": [
+      "medgemma",
+      "clip-rag"
+    ],
+    "qa_retrievers": [
+      "colpali",
+      "clip"
+    ],
+    "mock": true,
+    "skip_report": false,
+    "skip_qa": false,
+    "config": "configs/default.yaml"
+  },
+  "timestamp": "2026-05-14T20:08:57.190198"
+}
