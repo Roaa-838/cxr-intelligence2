@@ -64,6 +64,8 @@ class RAGQAPipeline:
 
     def load(self) -> "RAGQAPipeline":
         """Load retriever and generator. Call before run()."""
+        from ..evaluation.validation import require_mode
+        require_mode(self.mock, cfg=self.cfg)
         logger.info(
             "Loading RAGQAPipeline (retriever=%s, generator=%s) …",
             self.retriever_name, self.generator_name,
@@ -97,10 +99,7 @@ class RAGQAPipeline:
                 logger.info("Loading ColPali index from %s", index_file)
                 self._retriever.load_index(index_file)
             else:
-                logger.warning(
-                    "ColPali index not found at %s. "
-                    "Run: python scripts/build_index.py --model colpali", index_file
-                )
+                raise FileNotFoundError(f"ColPali index missing: {index_file}")
 
         elif self.retriever_name in ("clip", "biomedclip"):
             from ..models.clip_retriever import CLIPRetriever
@@ -114,7 +113,7 @@ class RAGQAPipeline:
                 logger.info("Loading CLIP index from %s", index_file)
                 self._retriever.load_index(index_file)
             else:
-                logger.warning("CLIP index not found at %s.", index_file)
+                raise FileNotFoundError(f"CLIP index missing: {index_file}")
         else:
             raise ValueError(
                 f"Unknown retriever '{self.retriever_name}'. "

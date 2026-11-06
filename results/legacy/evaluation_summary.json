@@ -1,0 +1,10 @@
+{
+  "models": {
+    "medgemma": {},
+    "clip-rag": {}
+  },
+  "n_samples": 20,
+  "split": "test",
+  "audit_status": "legacy_unverified_not_model_performance",
+  "audit_note": "Empty model objects contain no valid measurements. The historical file does not record the cause; no cause is inferred. These are not zero performance scores."
+}

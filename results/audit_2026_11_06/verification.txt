@@ -1,0 +1,18 @@
+Command: python -m pytest -q
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.2.0, pluggy-1.7.0
+rootdir: <repository>
+configfile: pyproject.toml
+testpaths: tests
+collected 76 items
+
+tests/test_all.py ..................................................     [ 65%]
+tests/test_research_integrity.py ..........................              [100%]
+
+============================= 76 passed in 12.94s ==============================
+
+Mock comparison: 10 report + 10 QA fixtures; exit 0.
+Command: python scripts/run_comparison.py --mock --n-samples 10 --output-dir results/audit_2026_11_06
+Python compileall: passed. git diff --check: passed.
+No real-model inference or restricted dataset used.

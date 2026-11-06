@@ -237,17 +237,16 @@ class CLIPRetriever(BaseRetriever):
         images: list[Image.Image] = []
         self._metadata = []
 
+        from ..evaluation.validation import load_image
         for s in studies:
-            img = s["image"]
-            if isinstance(img, str):
-                try:
-                    img = Image.open(img).convert("RGB")
-                except Exception:
-                    logger.warning("Could not load image: %s", img)
-                    img = Image.new("RGB", (224, 224), color=128)
+            img = load_image(s.get("image"), mock=getattr(self, "_mock", False))
             images.append(img)
             self._metadata.append({
                 "study_id":   s.get("study_id", ""),
+                "subject_id": s.get("subject_id", ""),
+                "split": s.get("split", ""),
+                "data_mode": s.get("data_mode", "unverified"),
+                "model_mode": "mock" if getattr(self, "_mock", False) else "real",
                 "report":     s.get("report", ""),
                 "findings":   s.get("findings", ""),
                 "impression": s.get("impression", ""),

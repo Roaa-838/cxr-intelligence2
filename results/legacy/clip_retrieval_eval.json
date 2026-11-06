@@ -1,0 +1,7 @@
+{
+  "status": "unverified_legacy",
+  "evaluation_mode": "unknown",
+  "n_records": 5,
+  "note": "Patient-level records and source report excerpts removed. Original split, model and evaluator provenance are not verified.",
+  "legacy_mean_latency_s": 0.30200000000000005
+}

@@ -1,0 +1,153 @@
+{
+  "report_generation": {
+    "mock": {
+      "n_samples": 10,
+      "bleu_1": 0.054054054054054064,
+      "bleu_2": 0.038749212914606423,
+      "bleu_3": 0.012896620201047758,
+      "bleu_4": 0.006301910131401987,
+      "bleu_avg": 0.02800044932527756,
+      "rouge_1": 0.14285714285714285,
+      "rouge_2": 0.049999999999999996,
+      "rouge_l": 0.09523809523809523,
+      "bertscore_f1": null,
+      "bertscore_status": "not_requested_mock",
+      "radgraph_f1": null,
+      "radgraph_status": "not_requested_mock",
+      "model": "mock",
+      "evaluation_mode": "mock",
+      "n_input": 10,
+      "n_valid_images": 0,
+      "n_excluded": 0,
+      "runtime": {
+        "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+        "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+        "versions": {
+          "numpy": "2.3.5",
+          "pandas": "2.2.3",
+          "pillow": "13.0.0",
+          "torch": "2.15.0+cpu",
+          "transformers": null,
+          "nltk": "3.10.4",
+          "rouge-score": "0.1.2",
+          "bert-score": null,
+          "radgraph": null,
+          "colpali-engine": null,
+          "open-clip-torch": null
+        },
+        "source_commit": "13374a42fd536c22317d5aca434e19fc74892b5e",
+        "working_tree_dirty": true,
+        "components": {
+          "vlm": {
+            "class": "MockVLM",
+            "model_id": null,
+            "model_name": null,
+            "device": "None",
+            "dtype": "None",
+            "loaded_in_4bit": false,
+            "loaded_in_8bit": false,
+            "device_map": {}
+          },
+          "retriever": {
+            "class": "MockRetriever",
+            "model_id": null,
+            "model_name": null,
+            "device": "None",
+            "dtype": "None",
+            "loaded_in_4bit": false,
+            "loaded_in_8bit": false,
+            "device_map": {}
+          }
+        }
+      },
+      "n_valid": 10,
+      "n_errors": 0
+    }
+  },
+  "qa": {
+    "mock": {
+      "n_samples": 10,
+      "exact_match": 0.0,
+      "token_f1": 0.27272727272727265,
+      "rouge_1": 0.21428571428571425,
+      "rouge_2": 0.15384615384615383,
+      "rouge_l": 0.21428571428571425,
+      "bertscore_f1": null,
+      "bertscore_status": "not_requested_mock",
+      "by_type": {
+        "presence": {
+          "n": 10,
+          "exact_match": 0.0,
+          "token_f1": 0.27272727272727265
+        }
+      },
+      "retriever": "mock",
+      "evaluation_mode": "mock",
+      "n_input": 10,
+      "n_valid_images": 0,
+      "n_valid": 10,
+      "n_excluded": 0,
+      "runtime": {
+        "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+        "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+        "versions": {
+          "numpy": "2.3.5",
+          "pandas": "2.2.3",
+          "pillow": "13.0.0",
+          "torch": "2.15.0+cpu",
+          "transformers": null,
+          "nltk": "3.10.4",
+          "rouge-score": "0.1.2",
+          "bert-score": null,
+          "radgraph": null,
+          "colpali-engine": null,
+          "open-clip-torch": null
+        },
+        "source_commit": "13374a42fd536c22317d5aca434e19fc74892b5e",
+        "working_tree_dirty": true,
+        "components": {
+          "generator": {
+            "class": "MockVLM",
+            "model_id": null,
+            "model_name": null,
+            "device": "None",
+            "dtype": "None",
+            "loaded_in_4bit": false,
+            "loaded_in_8bit": false,
+            "device_map": {}
+          },
+          "retriever": {
+            "class": "MockRetriever",
+            "model_id": null,
+            "model_name": null,
+            "device": "None",
+            "dtype": "None",
+            "loaded_in_4bit": false,
+            "loaded_in_8bit": false,
+            "device_map": {}
+          }
+        }
+      }
+    }
+  },
+  "evaluation_mode": "mock",
+  "args": {
+    "data_dir": "data/processed",
+    "qa_dataset": "data/qa_dataset.json",
+    "output_dir": "results/audit_2026_11_06",
+    "n_samples": 10,
+    "report_models": [
+      "medgemma",
+      "clip-rag"
+    ],
+    "qa_retrievers": [
+      "colpali",
+      "clip"
+    ],
+    "mock": true,
+    "skip_report": false,
+    "skip_qa": false,
+    "config": "configs/default.yaml"
+  },
+  "timestamp": "2026-11-06T10:59:35.799059+00:00"
+}

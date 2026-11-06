@@ -1,0 +1,11 @@
+{
+  "status": "unverified_legacy",
+  "evaluation_mode": "unknown",
+  "n_records": 10,
+  "note": "Patient-level records and source report excerpts removed. Original split, model and evaluator provenance are not verified.",
+  "legacy_mean_latency_s": 0.28500000000000003,
+  "legacy_mean_bleu_1": 0.3117292456321451,
+  "legacy_mean_bleu_4": 0.10120472641845812,
+  "legacy_mean_rouge_l": 0.29542317434118065,
+  "legacy_mean_rouge_1": 0.4548412133210446
+}

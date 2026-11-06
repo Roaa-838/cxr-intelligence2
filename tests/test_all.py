@@ -321,8 +321,8 @@ class TestMetrics:
         """Test the heuristic fallback (radgraph package may not be installed)."""
         from src.evaluation.metrics import _radgraph_heuristic_fallback
         r = _radgraph_heuristic_fallback(sample_reports[:2], sample_reports[:2])
-        assert "radgraph_f1" in r
-        assert 0.0 <= r["radgraph_f1"] <= 1.0
+        assert r["radgraph_f1"] is None
+        assert 0.0 <= r["clinical_entity_overlap_f1"] <= 1.0
 
     def test_exact_match(self):
         from src.evaluation.metrics import compute_exact_match

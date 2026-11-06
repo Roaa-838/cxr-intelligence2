@@ -1,0 +1,147 @@
+{
+  "metrics": {
+    "n_samples": 10,
+    "bleu_1": 0.054054054054054064,
+    "bleu_2": 0.038749212914606423,
+    "bleu_3": 0.012896620201047758,
+    "bleu_4": 0.006301910131401987,
+    "bleu_avg": 0.02800044932527756,
+    "rouge_1": 0.14285714285714285,
+    "rouge_2": 0.049999999999999996,
+    "rouge_l": 0.09523809523809523,
+    "bertscore_f1": null,
+    "bertscore_status": "not_requested_mock",
+    "radgraph_f1": null,
+    "radgraph_status": "not_requested_mock",
+    "model": "mock",
+    "evaluation_mode": "mock",
+    "n_input": 10,
+    "n_valid_images": 0,
+    "n_excluded": 0,
+    "runtime": {
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+      "versions": {
+        "numpy": "2.3.5",
+        "pandas": "2.2.3",
+        "pillow": "13.0.0",
+        "torch": "2.15.0+cpu",
+        "transformers": null,
+        "nltk": "3.10.4",
+        "rouge-score": "0.1.2",
+        "bert-score": null,
+        "radgraph": null,
+        "colpali-engine": null,
+        "open-clip-torch": null
+      },
+      "source_commit": "13374a42fd536c22317d5aca434e19fc74892b5e",
+      "working_tree_dirty": true,
+      "components": {
+        "vlm": {
+          "class": "MockVLM",
+          "model_id": null,
+          "model_name": null,
+          "device": "None",
+          "dtype": "None",
+          "loaded_in_4bit": false,
+          "loaded_in_8bit": false,
+          "device_map": {}
+        },
+        "retriever": {
+          "class": "MockRetriever",
+          "model_id": null,
+          "model_name": null,
+          "device": "None",
+          "dtype": "None",
+          "loaded_in_4bit": false,
+          "loaded_in_8bit": false,
+          "device_map": {}
+        }
+      }
+    },
+    "n_valid": 10,
+    "n_errors": 0
+  },
+  "samples": [
+    {
+      "study_id": "synthetic_0",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_1",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_2",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_3",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_4",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_5",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_6",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_7",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_8",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    },
+    {
+      "study_id": "synthetic_9",
+      "generated": "FINDINGS:\nThe heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.\n\nIMPRESSION:\nNo acute cardiopulmonary process.",
+      "findings": "The heart size is normal. The mediastinum is not widened. The lungs are clear bilaterally with no focal consolidation. No pleural effusion or pneumothorax is identified. The bony structures are intact.",
+      "impression": "No acute cardiopulmonary process.",
+      "reference": "Synthetic fixture: no acute findings.",
+      "latency_s": 0.0
+    }
+  ]
+}

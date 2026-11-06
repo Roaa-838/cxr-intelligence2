@@ -1,0 +1,28 @@
+{
+  "metrics": {
+    "n_samples": 20,
+    "exact_match": 0.0,
+    "token_f1": 0.2696823715394483,
+    "rouge_l": 0.16366755448129153,
+    "rouge_1": 0.2636523412162488,
+    "bertscore_f1": 0.0,
+    "bertscore_p": 0.0,
+    "bertscore_r": 0.0,
+    "by_type": {
+      "diagnosis": {
+        "n": 3,
+        "exact_match": 0.0,
+        "token_f1": 0.05128205128205129
+      },
+      "presence": {
+        "n": 17,
+        "exact_match": 0.0,
+        "token_f1": 0.30822360452604775
+      }
+    },
+    "retriever": "mock"
+  },
+  "audit_status": "legacy_unverified_not_model_performance",
+  "audit_note": "Sample-level content removed. Historical zeros may mean unavailable metrics. No new inference was run to validate these values.",
+  "evaluation_mode": "mock"
+}

@@ -148,6 +148,8 @@ class ReportGenerationPipeline:
         Load model weights into memory.
         Returns self so you can chain:  pipeline = Pipeline(...).load()
         """
+        from ..evaluation.validation import require_mode
+        require_mode(self.mock, cfg=self.cfg)
         logger.info("Loading pipeline  model=%s  mock=%s", self.model_name, self.mock)
         loader = {
             "mock":           self._load_mock,
@@ -179,11 +181,7 @@ class ReportGenerationPipeline:
                 model_id = ft_dir
                 logger.info("Fine-tuned checkpoint: %s", ft_dir)
             else:
-                logger.warning(
-                    "Fine-tuned checkpoint not found at '%s'. "
-                    "Falling back to base MedGemma. "
-                    "Run: python scripts/finetune_medgemma.py", ft_dir
-                )
+                raise FileNotFoundError(f"Fine-tuned checkpoint missing: {ft_dir}")
         self._vlm = MedGemmaModel.load(
             model_id=model_id,
             use_4bit=model_cfg.get("use_4bit", False),
@@ -225,7 +223,7 @@ class ReportGenerationPipeline:
             self._retriever.load_index(index_path)
             logger.info("CLIP retrieval index loaded: %d entries", self._retriever.index_size)
         else:
-            logger.warning("CLIP index not found at %s", index_path)
+            raise FileNotFoundError(f"CLIP index missing: {index_path}")
 
     def _try_load_index(self, kind: str) -> None:
         base = Path(self.cfg.get("rag", {}).get("index_path", "data/index"))
@@ -235,20 +233,14 @@ class ReportGenerationPipeline:
                 self._retriever.load_index(idx)
                 logger.info("CLIP index loaded (%d entries).", self._retriever.index_size)
             else:
-                logger.warning(
-                    "No CLIP index at '%s'. Zero-shot fallback. "
-                    "Run: python scripts/build_index.py --model clip", idx
-                )
+                raise FileNotFoundError(f"CLIP index missing: {idx}")
         else:
             idx = base / "colpali_index"
             if Path(str(idx) + ".npy").exists():
                 self._retriever.load_index(idx)
                 logger.info("ColPali index loaded (%d entries).", self._retriever.index_size)
             else:
-                logger.warning(
-                    "No ColPali index at '%s'. Zero-shot fallback. "
-                    "Run: python scripts/build_index.py --model colpali", idx
-                )
+                raise FileNotFoundError(f"ColPali index missing: {idx}")
 
     # ── Primary public interface ───────────────────────────────────────────────
 
@@ -455,7 +447,7 @@ class ReportGenerationPipeline:
             )
         else:
             mode = self.model_name.split("-")[0].upper()
-            logger.warning("%s-RAG: retriever not indexed — zero-shot fallback.", mode)
+            raise RuntimeError(f"{mode}-RAG requires a populated retrieval index")
 
         raw_result = self._vlm.generate_report(
             image,
@@ -516,7 +508,7 @@ class ReportGenerationPipeline:
     ) -> None:
         """
         Pretty-print a side-by-side comparison of two model outputs
-        with optional RadGraph heuristic F1 and ROUGE-L scores.
+        with optional clinical entity-overlap heuristic F1 and ROUGE-L scores.
         """
         def _get(r, k):
             return r.get(k, "") if isinstance(r, dict) else getattr(r, k, "")
@@ -555,7 +547,7 @@ class ReportGenerationPipeline:
         try:
             from ..evaluation.metrics import _radgraph_heuristic_fallback, compute_rouge
             print(f"\n{SEP}")
-            print(f"  {'Model':<16}  RadGraph F1 (heuristic)   ROUGE-L")
+            print(f"  {'Model':<16}  Clinical entity-overlap heuristic F1   ROUGE-L")
             print(SEP)
             for label, res in [("Model A", result_a), ("Model B", result_b)]:
                 raw = _get(res, "raw") or (
@@ -564,7 +556,7 @@ class ReportGenerationPipeline:
                 if raw.strip() and reference:
                     rg = _radgraph_heuristic_fallback([raw], [reference])
                     rl = compute_rouge([raw], [reference])
-                    print(f"  {label:<16}  {rg['radgraph_f1']:>22.4f}   {rl['rouge_l']:.4f}")
+                    print(f"  {label:<16}  {rg['clinical_entity_overlap_f1']:>22.4f}   {rl['rouge_l']:.4f}")
         except Exception:
             pass
         print(f"{SEP}\n")

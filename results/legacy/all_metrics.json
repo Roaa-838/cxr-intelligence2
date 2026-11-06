@@ -13,8 +13,12 @@
       "bertscore_p": 0.0,
       "bertscore_r": 0.0,
       "bertscore_f1": 0.0,
-      "radgraph_f1": 0.0,
-      "radgraph_individual": [
+      "radgraph_note": "heuristic_fallback",
+      "model": "mock",
+      "n_valid": 6,
+      "wall_time_s": 3.3,
+      "clinical_entity_overlap_f1": 0.0,
+      "clinical_entity_overlap_individual": [
         0.0,
         0.0,
         0.0,
@@ -22,10 +26,8 @@
         0.0,
         0.0
       ],
-      "radgraph_note": "heuristic_fallback",
-      "model": "mock",
-      "n_valid": 6,
-      "wall_time_s": 3.3
+      "radgraph_f1": null,
+      "radgraph_status": "unavailable_heuristic_used"
     }
   },
   "qa": {
@@ -72,5 +74,8 @@
     "skip_qa": false,
     "config": "configs/default.yaml"
   },
-  "timestamp": "2026-05-14T20:08:57.190198"
+  "timestamp": "2026-05-14T20:08:57.190198",
+  "audit_status": "legacy_unverified_not_model_performance",
+  "audit_note": "Sample-level content removed. Historical zeros may mean unavailable metrics. No new inference was run to validate these values.",
+  "evaluation_mode": "mock"
 }

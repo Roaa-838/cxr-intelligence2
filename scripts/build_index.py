@@ -33,6 +33,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
+Path("results").mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)s  %(message)s",
@@ -44,85 +45,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _valid(val) -> bool:
-    """True if val is a non-null, non-NaN, non-empty non-'nan' string."""
-    if val is None:
-        return False
-    import math
-    if isinstance(val, float) and math.isnan(val):
-        return False
-    return bool(str(val).strip()) and str(val).strip().lower() != "nan"
+from src.evaluation.validation import load_report_samples, require_mode
 
 
-def load_training_studies(data_dir: Path, n: int, split: str = "train") -> list[dict]:
-    """
-    Load training studies for indexing.
-
-    Uses the absolute image_path column written by download_data.py.
-    Handles NaN values, skips missing images without crashing.
-    Only includes rows that have a resolvable image (required for visual index).
-    """
-    csv = data_dir / "metadata.csv"
-    if not csv.exists():
-        logger.warning("metadata.csv not found — using synthetic data.")
-        from src.data.dataset import SyntheticCXRDataset
-        ds = SyntheticCXRDataset(n_samples=min(n, 100))
-        return [
-            {"study_id": s.study_id, "image": s.image,
-             "image_path": s.image_path, "report": s.report}
-            for s in [ds[i] for i in range(len(ds))]
-        ]
-
-    df = pd.read_csv(csv, low_memory=False)
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-
-    if "split" in df.columns:
-        df = df[df["split"] == split]
-
-    df = df.dropna(subset=["text"])
-    df = df[df["text"].str.strip().str.len() > 10]
-
-    studies = []
-    skipped  = 0
-
-    for _, row in df.iterrows():
-        if len(studies) >= n:
-            break
-
-        # Resolve image — try image_path (absolute) then image column
-        img_path = None
-        for col in ("image_path", "image"):
-            val = row.get(col)
-            if _valid(val):
-                p = Path(str(val))
-                if p.exists():
-                    img_path = p
-                    break
-
-        # Skip rows without a resolvable image — we need visuals for the index
-        if img_path is None:
-            skipped += 1
-            continue
-
-        try:
-            from PIL import Image as _PIL
-            pil = _PIL.open(img_path).convert("RGB")
-        except Exception as e:
-            logger.debug("Cannot open %s: %s", img_path, e)
-            skipped += 1
-            continue
-
-        studies.append({
-            "study_id":   str(row.get("study_id", f"study_{len(studies)}")),
-            "image":      pil,
-            "image_path": str(img_path),
-            "report":     str(row.get("text", "")),
-        })
-
-    logger.info(
-        "Loaded %d studies for indexing (%d skipped — missing image).",
-        len(studies), skipped,
-    )
+def load_training_studies(data_dir: Path, n: int, split: str = "train"):
+    if split != "train":
+        raise ValueError("Research index must use the train split")
+    studies = load_report_samples(data_dir, n, split)
+    for s in studies:
+        if not s.get("subject_id"):
+            raise ValueError("subject_id is required to prevent patient leakage")
+        s["data_mode"] = "real"
     return studies
 
 
@@ -136,15 +69,6 @@ def build_colpali_index(
 
     logger.info("Building ColPali index over %d studies …", len(studies))
     retriever = ColPaliRetriever.load(mock=mock)
-
-    # Load PIL images from paths
-    from PIL import Image
-    for s in studies:
-        if s.get("image") is None and s.get("image_path"):
-            try:
-                s["image"] = Image.open(s["image_path"]).convert("RGB")
-            except Exception:
-                s["image"] = Image.new("RGB", (448, 448), color=128)
 
     retriever.build_index(studies, batch_size=4)
 
@@ -172,14 +96,6 @@ def build_clip_index(
     logger.info("Building CLIP (%s) index over %d studies …", model_name, len(studies))
     retriever = CLIPRetriever.load(model_name=model_name, mock=mock)
 
-    from PIL import Image
-    for s in studies:
-        if s.get("image") is None and s.get("image_path"):
-            try:
-                s["image"] = Image.open(s["image_path"]).convert("RGB")
-            except Exception:
-                s["image"] = Image.new("RGB", (224, 224), color=128)
-
     retriever.build_index(studies, batch_size=64)
 
     out_path = output_dir / "clip_index.pkl"
@@ -206,20 +122,20 @@ def parse_args():
 
 def main():
     args = parse_args()
+    require_mode(args.mock)
+    if args.n_samples < 1:
+        raise ValueError("n-samples must be positive")
     output_dir = Path(args.output_dir)
+    if args.mock or args.synthetic:
+        output_dir = output_dir / "synthetic_mock"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load studies
     data_dir = Path(args.data_dir)
-    if args.synthetic:
-        from src.data.dataset import SyntheticCXRDataset
-        n = min(args.n_samples, 100)
-        ds = SyntheticCXRDataset(n_samples=n)
-        studies = [
-            {"study_id": ds[i].study_id, "image": ds[i].image,
-             "image_path": "", "report": ds[i].report}
-            for i in range(len(ds))
-        ]
+    if args.synthetic or args.mock:
+        studies = load_report_samples(data_dir, args.n_samples, split="train", mock=True)
+        for s in studies:
+            s["data_mode"] = "synthetic"
     else:
         studies = load_training_studies(data_dir, args.n_samples, args.split)
 

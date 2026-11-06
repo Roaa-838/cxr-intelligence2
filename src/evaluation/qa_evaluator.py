@@ -66,11 +66,12 @@ Return ONLY a JSON object:
         device: Optional[str] = None,
         bertscore_model: str = "allenai/scibert_scivocab_uncased",
         use_llm_judge: bool = False,
+        use_bertscore: bool = True,
         llm_judge_provider: str = "anthropic",
         llm_judge_model: str = "claude-3-5-haiku-20241022",
     ) -> None:
-        import torch
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+        self.use_bertscore = use_bertscore
         self.bertscore_model = bertscore_model
         self.use_llm_judge = use_llm_judge
         self.llm_judge_provider = llm_judge_provider
@@ -110,19 +111,12 @@ Return ONLY a JSON object:
         results["token_f1"] = compute_token_f1(predictions, references)
 
         # ── ROUGE-L ──────────────────────────────────────────────────────────
-        rouge = compute_rouge(predictions, references)
-        results["rouge_l"] = rouge["rouge_l"]
-        results["rouge_1"] = rouge["rouge_1"]
-
-        # ── BERTScore ────────────────────────────────────────────────────────
-        bs = compute_bertscore(
-            predictions, references,
-            model_type=self.bertscore_model,
-            device=self.device,
-        )
-        results["bertscore_f1"] = bs["bertscore_f1"]
-        results["bertscore_p"]  = bs["bertscore_p"]
-        results["bertscore_r"]  = bs["bertscore_r"]
+        results.update(compute_rouge(predictions, references))
+        if self.use_bertscore:
+            results.update(compute_bertscore(predictions, references,
+                           model_type=self.bertscore_model, device=self.device))
+        else:
+            results.update(bertscore_f1=None, bertscore_status="not_requested_mock")
 
         # ── Per-type breakdown ───────────────────────────────────────────────
         if question_types:
@@ -237,6 +231,9 @@ Return ONLY a JSON object:
         for key, label in ordered:
             if key in results:
                 val = results[key]
+                if val is None:
+                    print(f"  {label:<25} Unavailable")
+                    continue
                 # LLM judge is 0-5, others 0-1
                 fmt = f"{val:>10.4f}" if key != "llm_judge_mean" else f"{val:>10.2f}/5.0"
                 print(f"  {label:<25} {fmt}")

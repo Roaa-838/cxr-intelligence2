@@ -1,3 +1,0 @@
-task,model,radgraph_f1,bertscore_f1,rouge_l,bleu_4,token_f1,exact_match
-report_gen,mock,0.0,0.0,0.0,0.0,,
-qa,clip,,0.0,0.15314970487005825,,0.27085359085359084,0.0

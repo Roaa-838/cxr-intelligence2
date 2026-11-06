@@ -1,3 +1,0 @@
-Model,RadGraph F1,BERTScore F1,ROUGE-L,ROUGE-1,BLEU-4,BLEU-1,N Valid,N Errors
-medgemma,0.0,0.0,0.0,0.0,0.0,0.0,0,0
-clip-rag,0.0,0.0,0.0,0.0,0.0,0.0,0,0

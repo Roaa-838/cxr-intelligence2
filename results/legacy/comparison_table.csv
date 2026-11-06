@@ -1,0 +1,3 @@
+task,model,bertscore_f1,rouge_l,bleu_4,token_f1,exact_match,evaluation_mode,clinical_entity_overlap_f1
+report_gen,mock,0.0,0.0,0.0,,,mock,0.0
+qa,clip,0.0,0.15314970487005825,,0.27085359085359084,0.0,mock,

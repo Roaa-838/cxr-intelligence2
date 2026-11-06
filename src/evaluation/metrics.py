@@ -1,29 +1,6 @@
-"""
-src/evaluation/metrics.py
-==========================
-Evaluation metrics for chest X-ray report generation and QA.
+"""Text similarity metrics and a separately named clinical entity-overlap heuristic.
 
-Metrics implemented:
-  ── Lexical ─────────────────────────────────────────────────────────────────
-  - BLEU-1/2/4:     N-gram precision (nltk / sacrebleu)
-  - ROUGE-L:        Longest common subsequence F1
-  - METEOR:         Word-level alignment with stemming and synonyms
-
-  ── Semantic ────────────────────────────────────────────────────────────────
-  - BERTScore F1:   Contextual embedding similarity (best with SciBERT for CXR)
-
-  ── Clinical (most important) ────────────────────────────────────────────────
-  - RadGraph F1:    Entity + relation graph comparison (highest clinical validity)
-  - CheXBert sim:  Label-based similarity via CheXBert label extractor
-
-  ── QA-specific ─────────────────────────────────────────────────────────────
-  - Exact Match (EM)
-  - F1 token overlap
-  - LLM-as-judge   (requires API key)
-
-Reference ranking (correlation with radiologist judgement):
-  RadGraph F1 > BERTScore > ROUGE-L > BLEU
-  Source: Jain et al. 2021, Patterns 2023
+None means unavailable; scores do not establish clinical validity.
 """
 
 from __future__ import annotations
@@ -63,13 +40,6 @@ def compute_bleu(
         from nltk.translate.bleu_score import (
             corpus_bleu, SmoothingFunction
         )
-        import nltk
-        try:
-            nltk.data.find("tokenizers/punkt")
-        except LookupError:
-            nltk.download("punkt", quiet=True)
-            nltk.download("punkt_tab", quiet=True)
-
         smooth = SmoothingFunction().method3
         tokenised_refs = [[ref.lower().split()] for ref in references]
         tokenised_hyps = [hyp.lower().split() for hyp in hypotheses]
@@ -86,7 +56,7 @@ def compute_bleu(
 
     except Exception as e:
         logger.warning("BLEU computation failed: %s", e)
-        return {f"bleu_{n}": 0.0 for n in range(1, max_n + 1)} | {"bleu_avg": 0.0}
+        return {f"bleu_{n}": None for n in range(1, max_n + 1)} | {"bleu_avg": None, "bleu_status": "unavailable", "bleu_error": str(e)}
 
 
 def compute_rouge(
@@ -119,7 +89,7 @@ def compute_rouge(
         }
     except Exception as e:
         logger.warning("ROUGE computation failed: %s", e)
-        return {"rouge_1": 0.0, "rouge_2": 0.0, "rouge_l": 0.0}
+        return {"rouge_1": None, "rouge_2": None, "rouge_l": None, "rouge_status": "unavailable", "rouge_error": str(e)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -141,29 +111,12 @@ def compute_bertscore(
       2. microsoft/deberta-xlarge-mnli
       3. bert-base-uncased                 (fastest fallback)
 
-    CVE-2025-32434 note: BERTScore calls torch.load() internally.
-    torch < 2.6 shows a security warning but still works; we suppress it.
-    To silence permanently: pip install "torch>=2.6"
-
     Returns:
         dict with keys: bertscore_p, bertscore_r, bertscore_f1
     """
-    import warnings as _warnings
-    import torch as _torch
-
-    if device is None:
-        device = "cuda" if _torch.cuda.is_available() else "cpu"
-
-    # Workaround: patch torch.load so older torch versions do not raise
-    _orig_load = _torch.load
-    def _safe_load(*args, **kwargs):
-        kwargs.setdefault("weights_only", False)
-        with _warnings.catch_warnings():
-            _warnings.simplefilter("ignore")
-            return _orig_load(*args, **kwargs)
-    _torch.load = _safe_load
-
     try:
+        import torch
+        device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         from bert_score import score as bert_score_fn
         logger.info("Computing BERTScore with model=%s ...", model_type)
         P, R, F1 = bert_score_fn(
@@ -185,9 +138,7 @@ def compute_bertscore(
             "Fix BERTScore: pip install \"torch>=2.6\" torchvision "
             "--index-url https://download.pytorch.org/whl/cu118"
         )
-        return {"bertscore_p": 0.0, "bertscore_r": 0.0, "bertscore_f1": 0.0}
-    finally:
-        _torch.load = _orig_load  # always restore
+        return {"bertscore_p": None, "bertscore_r": None, "bertscore_f1": None, "bertscore_status": "unavailable", "bertscore_error": str(e)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,7 +151,7 @@ def compute_radgraph_f1(
     reward_level: str = "partial",  # "partial" | "complete"
 ) -> dict[str, float]:
     """
-    Compute RadGraph F1 — the clinically most valid metric for CXR reports.
+    Compute RadGraph F1 using the installed official evaluator when available.
 
     RadGraph parses reports into clinical entity-relation graphs and computes
     F1 between the hypothesis and reference graphs.
@@ -230,6 +181,8 @@ def compute_radgraph_f1(
         return {
             "radgraph_f1":        mean_f1,
             "radgraph_individual": individual,
+            "radgraph_status": "computed",
+            "radgraph_reward_level": reward_level,
         }
     except ImportError:
         logger.warning(
@@ -239,7 +192,7 @@ def compute_radgraph_f1(
         return _radgraph_heuristic_fallback(hypotheses, references)
     except Exception as e:
         logger.warning("RadGraph F1 computation failed: %s", e)
-        return {"radgraph_f1": 0.0, "radgraph_individual": []}
+        return {"radgraph_f1": None, "radgraph_individual": [], "radgraph_status": "unavailable", "radgraph_error": str(e)}
 
 
 # ── Clinical entity heuristic (fallback when radgraph not available) ──────────
@@ -260,7 +213,7 @@ def _radgraph_heuristic_fallback(
     references: list[str],
 ) -> dict[str, float]:
     """
-    Lightweight clinical entity F1 — a rough proxy for RadGraph F1.
+    Clinical entity-overlap heuristic F1; NOT RadGraph and not clinical validation.
     Only use when the radgraph package is unavailable.
     """
     f1_scores: list[float] = []
@@ -280,9 +233,11 @@ def _radgraph_heuristic_fallback(
         f1_scores.append(f1)
 
     return {
-        "radgraph_f1":         float(np.mean(f1_scores)),
-        "radgraph_individual": f1_scores,
-        "radgraph_note":       "heuristic_fallback",
+        "clinical_entity_overlap_f1": float(np.mean(f1_scores)),
+        "clinical_entity_overlap_individual": f1_scores,
+        "clinical_entity_overlap_status": "computed_heuristic",
+        "radgraph_f1": None,
+        "radgraph_status": "unavailable_package_missing",
     }
 
 
@@ -310,7 +265,7 @@ def compute_exact_match(predictions: list[str], references: list[str]) -> float:
 
 def compute_token_f1(predictions: list[str], references: list[str]) -> float:
     """
-    Token-level F1 score (SQuAD-style).
+    Unique-token overlap F1 (set-based, not SQuAD multiset scoring).
 
     F1 = 2 * precision * recall / (precision + recall)
     where precision = |overlap| / |prediction|
@@ -395,11 +350,12 @@ class ReportEvaluator:
         device: Optional[str] = None,
         bertscore_model: str = "allenai/scibert_scivocab_uncased",
         use_radgraph: bool = True,
+        use_bertscore: bool = True,
     ) -> None:
-        import torch as _torch
-        self.device = device or ("cuda" if _torch.cuda.is_available() else "cpu")
+        self.device = device
         self.bertscore_model = bertscore_model
         self.use_radgraph = use_radgraph
+        self.use_bertscore = use_bertscore
 
     def evaluate(
         self,
@@ -426,19 +382,19 @@ class ReportEvaluator:
         logger.info("  -> ROUGE …")
         results.update(compute_rouge(hypotheses, references))
 
-        # Semantic
-        logger.info("  -> BERTScore …")
-        results.update(compute_bertscore(
-            hypotheses, references,
-            model_type=self.bertscore_model,
-            device=self.device,
-        ))
+        if self.use_bertscore:
+            results.update(compute_bertscore(hypotheses, references,
+                           model_type=self.bertscore_model, device=self.device))
+        else:
+            results.update(bertscore_f1=None, bertscore_status="not_requested_mock")
 
         # Clinical
         if self.use_radgraph:
             logger.info("  -> RadGraph F1 …")
             results.update(compute_radgraph_f1(hypotheses, references))
 
+        if not self.use_radgraph:
+            results.update(radgraph_f1=None, radgraph_status="not_requested_mock")
         logger.info("Evaluation complete.")
         return results
 
@@ -452,7 +408,8 @@ class ReportEvaluator:
         print(f"  {'─' * 35}")
 
         metric_order = [
-            ("radgraph_f1",  "RadGraph F1 ★"),
+            ("radgraph_f1",  "RadGraph F1"),
+            ("clinical_entity_overlap_f1", "Clinical entity-overlap heuristic F1"),
             ("bertscore_f1", "BERTScore F1"),
             ("rouge_l",      "ROUGE-L"),
             ("rouge_1",      "ROUGE-1"),
@@ -461,7 +418,9 @@ class ReportEvaluator:
         ]
         for key, label in metric_order:
             if key in results:
-                print(f"  {label:<25} {results[key]:>10.4f}")
+                value = results[key]
+                score = f"{value:.4f}" if isinstance(value, (int, float)) else "Unavailable"
+                print(f"  {label:<25} {score:>10}")
         print(f"{'─' * 50}\n")
 
     def save_results(self, results: dict, path: str) -> None:

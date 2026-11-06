@@ -267,7 +267,7 @@ class MedGemmaModel(BaseVLM):
             raise RuntimeError("Model not loaded. Call MedGemmaModel.load() first.")
 
         if image is None:
-            image = self._blank_cxr()
+            raise ValueError("A real input image is required; blank-image fallback disabled")
 
         image = image.convert("RGB")
 

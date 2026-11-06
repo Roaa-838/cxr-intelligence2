@@ -51,113 +51,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _is_valid_path(val) -> bool:
-    """Return True if val is a non-null, non-'nan' non-empty string path."""
-    if val is None:
-        return False
-    import math
-    if isinstance(val, float) and math.isnan(val):
-        return False
-    s = str(val).strip()
-    return bool(s) and s.lower() != "nan"
+from src.evaluation.provenance import runtime_metadata
+from src.evaluation.validation import (load_report_samples, require_mode, validate_reports,
+                                       validate_index, validate_outputs)
 
 
-def _open_image(path_str: str):
-    """Open an image at an absolute path. Returns PIL Image or None."""
-    from PIL import Image as _PIL
-    p = Path(path_str)
-    if not p.exists() or not p.is_file():
-        return None
-    try:
-        return _PIL.open(p).convert("RGB")
-    except Exception as e:
-        logger.debug("Could not open %s: %s", p, e)
-        return None
-
-
-def load_test_samples(data_dir: Path, n: int, split: str = "test") -> list[dict]:
-    """
-    Load n samples from metadata.csv for evaluation.
-
-    Image resolution priority (real MIMIC-CXR dataset):
-      1. image_path column  — absolute path written by download_data.py
-      2. image column       — may also be absolute or relative
-      3. Skip gracefully    — sample included with image=None so report
-                              text metrics still run
-
-    NaN handling: pandas reads empty strings back as NaN after a CSV
-    round-trip. We check for NaN/nan explicitly before Path operations.
-    """
-    csv = data_dir / "metadata.csv"
-    if not csv.exists():
-        logger.warning("metadata.csv not found — using synthetic data.")
-        from src.data.dataset import SyntheticCXRDataset
-        ds = SyntheticCXRDataset(n_samples=n)
-        return [
-            {"study_id": s.study_id, "image": s.image, "report": s.report}
-            for s in [ds[i] for i in range(len(ds))]
-        ]
-
-    df = pd.read_csv(csv, low_memory=False)
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-
-    # Filter by split; fall back to validate if test is empty
-    if "split" in df.columns:
-        subset = df[df["split"] == split]
-        if subset.empty and split == "test":
-            logger.warning(
-                "No rows with split='test'. Falling back to split='validate'."
-            )
-            subset = df[df["split"] == "validate"]
-        df = subset
-
-    # Drop rows with no report text, then take first n that have an image
-    df = df.dropna(subset=["text"])
-    df = df[df["text"].str.strip().str.len() > 10]
-
-    # Prefer rows that have a resolvable image, but never skip all
-    has_img_col  = "image_path" in df.columns or "image" in df.columns
-    samples      = []
-    skipped_img  = 0
-
-    for _, row in df.iterrows():
-        if len(samples) >= n:
-            break
-
-        report = str(row.get("text", "")).strip()
-        if not report:
-            continue
-
-        # Resolve image — try image_path first, then image column
-        pil = None
-        for col in ("image_path", "image"):
-            val = row.get(col)
-            if _is_valid_path(val):
-                pil = _open_image(str(val))
-                if pil is not None:
-                    break
-
-        if pil is None:
-            skipped_img += 1
-
-        samples.append({
-            "study_id": str(row.get("study_id", f"row_{len(samples)}")),
-            "image":    pil,      # PIL Image or None (metrics still run on text)
-            "report":   report,
-        })
-
-    loaded_imgs = sum(1 for s in samples if s["image"] is not None)
-    logger.info(
-        "Loaded %d samples: %d with images, %d text-only (image missing/unresolved).",
-        len(samples), loaded_imgs, skipped_img,
-    )
-    if loaded_imgs == 0:
-        logger.warning(
-            "No images loaded! MedGemma will receive blank placeholder images. "
-            "Check that image_path values in metadata.csv point to existing files. "
-            "Run: python scripts/download_data.py --explore"
-        )
-    return samples
+def load_test_samples(data_dir: Path, n: int, split: str = "test", mock=False):
+    return load_report_samples(data_dir, n, split, mock)
 
 
 def run_model_evaluation(
@@ -175,14 +75,20 @@ def run_model_evaluation(
     from src.pipelines.report_generation import ReportGenerationPipeline
     from src.evaluation.metrics import ReportEvaluator
 
+    require_mode(mock, [model_name], cfg)
+    validate_reports(samples)
     pipeline = ReportGenerationPipeline(
         model=model_name, cfg=cfg, mock=mock
     ).load()
 
-    evaluator = ReportEvaluator(use_radgraph=True)
+    if not mock and pipeline._retriever is not None:
+        validate_index(pipeline._retriever, samples)
+    evaluator = ReportEvaluator(use_radgraph=not mock, use_bertscore=not mock)
 
     # Run inference
     results = pipeline.run_batch(samples, show_progress=True)
+
+    validate_outputs(results, len(samples), "raw")
 
     # Extract generated and reference texts
     generated = [r.get("raw", r.get("findings", "") + "\n" + r.get("impression", ""))
@@ -200,6 +106,11 @@ def run_model_evaluation(
     # Compute metrics
     metrics = evaluator.evaluate(list(gen_texts), list(ref_texts))
     metrics["model"]    = model_name
+    metrics["evaluation_mode"] = "mock" if mock else "real"
+    metrics["n_input"] = len(samples)
+    metrics["n_valid_images"] = 0 if mock else len(samples)
+    metrics["n_excluded"] = 0
+    metrics["runtime"] = runtime_metadata(pipeline)
     metrics["n_valid"]  = len(pairs)
     metrics["n_errors"] = sum(1 for r in results if r.get("error", ""))
 
@@ -229,6 +140,7 @@ def build_comparison_table(all_metrics: dict[str, dict]) -> pd.DataFrame:
     """Format all model results into a comparison DataFrame."""
     metric_keys = [
         ("radgraph_f1",  "RadGraph F1"),
+        ("clinical_entity_overlap_f1", "Clinical entity-overlap heuristic F1"),
         ("bertscore_f1", "BERTScore F1"),
         ("rouge_l",      "ROUGE-L"),
         ("rouge_1",      "ROUGE-1"),
@@ -237,9 +149,10 @@ def build_comparison_table(all_metrics: dict[str, dict]) -> pd.DataFrame:
     ]
     rows = []
     for model, metrics in all_metrics.items():
-        row = {"Model": model}
+        row = {"Model": model, "evaluation_mode": metrics.get("evaluation_mode"), "status": metrics.get("status", "completed")}
         for key, label in metric_keys:
-            row[label] = round(metrics.get(key, 0.0), 4)
+            value = metrics.get(key)
+            row[label] = round(value, 4) if isinstance(value, (int, float)) else None
         row["N Valid"] = metrics.get("n_valid", 0)
         row["N Errors"] = metrics.get("n_errors", 0)
         rows.append(row)
@@ -263,12 +176,13 @@ def parse_args():
 
 def main():
     args = parse_args()
-    output_dir = Path(args.output_dir)
+    output_dir = Path(args.output_dir) / ("mock" if args.mock else "real")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load config
     from src.config import load_config
     cfg = load_config(args.config)
+    require_mode(args.mock, args.models, cfg)
 
     # Load test samples
     logger.info("Loading %d test samples …", args.n_samples)
@@ -276,6 +190,7 @@ def main():
         data_dir=Path(args.data_dir),
         n=args.n_samples,
         split=args.split,
+        mock=args.mock,
     )
     logger.info("Loaded %d samples.", len(samples))
 
@@ -295,6 +210,7 @@ def main():
             all_metrics[model_name] = metrics
         except Exception as e:
             logger.error("Evaluation failed for %s: %s", model_name, e, exc_info=True)
+            all_metrics[model_name] = {"status": "failed", "error": str(e), "evaluation_mode": "mock" if args.mock else "real"}
 
     # Comparison table
     if len(all_metrics) > 1:
@@ -308,10 +224,13 @@ def main():
         print("═" * 70 + "\n")
 
     # Save summary JSON
-    summary = {"models": all_metrics, "n_samples": args.n_samples, "split": args.split}
+    summary = {"models": all_metrics, "n_requested": args.n_samples, "split": args.split, "evaluation_mode": "mock" if args.mock else "real"}
     with open(output_dir / "evaluation_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
     logger.info("Evaluation complete. Summary -> %s/evaluation_summary.json", output_dir)
+
+    if any("error" in m for m in all_metrics.values()):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -26,26 +26,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(me
 logger = logging.getLogger(__name__)
 
 
-def load_qa_dataset(path: str, n: int) -> list[dict]:
-    """Load QA dataset; fall back to generating synthetic pairs."""
-    p = Path(path)
-    if p.exists():
-        with open(p) as f:
-            data = json.load(f)
-        logger.info("Loaded %d QA pairs from %s", len(data), p)
-        return data[:n]
+from src.evaluation.validation import (load_qa_pairs, prepare_qa_batch, require_mode,
+                                       validate_index, validate_outputs)
+from src.evaluation.provenance import runtime_metadata
 
-    logger.warning("QA dataset not found at %s — generating mock pairs.", p)
-    from src.data.dataset import SyntheticCXRDataset
-    from scripts.generate_qa_dataset import generate_mock_qa
 
-    ds = SyntheticCXRDataset(n_samples=min(n // 5, 50))
-    reports = [
-        {"study_id": ds[i].study_id, "text": ds[i].report,
-         "image": ds[i].image_path}
-        for i in range(len(ds))
-    ]
-    return generate_mock_qa(reports, n_questions=5)[:n]
+def load_qa_dataset(path: str, n: int, mock=False):
+    return load_qa_pairs(path, n, mock)
 
 
 def run_qa_evaluation(
@@ -64,38 +51,25 @@ def run_qa_evaluation(
     logger.info("Evaluating retriever: %s (%d pairs)", retriever_name, len(qa_pairs))
     logger.info("─" * 55)
 
+    require_mode(mock, [retriever_name], cfg)
+    batch = prepare_qa_batch(qa_pairs, mock)
     pipeline = RAGQAPipeline(
         retriever=retriever_name, generator="medgemma",
         cfg=cfg, mock=mock,
     ).load()
 
-    # Load images and run QA
-    batch = []
-    for qa in qa_pairs:
-        img = qa.get("image_path", qa.get("image", ""))
-        if img and Path(img).exists():
-            try:
-                pil = PILImage.open(img).convert("RGB")
-            except Exception:
-                pil = PILImage.new("RGB", (448, 448), color=128)
-        else:
-            pil = PILImage.new("RGB", (448, 448), color=128)
-
-        batch.append({
-            "image":    pil,
-            "question": qa["question"],
-            "answer":   qa.get("answer", ""),
-            "study_id": qa.get("study_id", ""),
-        })
+    if not mock:
+        validate_index(pipeline._retriever, qa_pairs)
 
     results = pipeline.run_batch(batch, top_k=5)
 
+    validate_outputs(results, len(batch), "answer")
     predictions = [r.get("answer", "") for r in results]
     references  = [b["answer"] for b in batch]
     questions   = [b["question"] for b in batch]
     q_types     = [qa.get("question_type", "general") for qa in qa_pairs]
 
-    evaluator = QAEvaluator()
+    evaluator = QAEvaluator(use_bertscore=not mock)
     metrics = evaluator.evaluate(
         predictions=predictions,
         references=references,
@@ -103,6 +77,12 @@ def run_qa_evaluation(
         question_types=q_types,
     )
     metrics["retriever"] = retriever_name
+    metrics["evaluation_mode"] = "mock" if mock else "real"
+    metrics["n_input"] = len(batch)
+    metrics["n_valid_images"] = len(batch) if not mock else 0
+    metrics["n_valid"] = len(results)
+    metrics["n_excluded"] = 0
+    metrics["runtime"] = runtime_metadata(pipeline)
 
     evaluator.print_results(metrics, title=f"QA Results — {retriever_name}")
 
@@ -140,13 +120,14 @@ def parse_args():
 
 def main():
     args = parse_args()
-    output_dir = Path(args.output_dir)
+    output_dir = Path(args.output_dir) / ("mock" if args.mock else "real")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     from src.config import load_config
     cfg = load_config(args.config)
+    require_mode(args.mock, args.retrievers, cfg)
 
-    qa_pairs = load_qa_dataset(args.qa_dataset, args.n_samples)
+    qa_pairs = load_qa_dataset(args.qa_dataset, args.n_samples, args.mock)
     logger.info("QA pairs to evaluate: %d", len(qa_pairs))
 
     all_metrics: dict[str, dict] = {}
@@ -164,26 +145,12 @@ def main():
             all_metrics[retriever] = metrics
         except Exception as e:
             logger.error("QA evaluation failed for %s: %s", retriever, e, exc_info=True)
+            all_metrics[retriever] = {"status": "failed", "error": str(e)}
 
-    # Comparison
-    if len(all_metrics) > 1:
-        import pandas as pd
-        print("\n" + "═" * 60)
-        print("  QA RETRIEVER COMPARISON")
-        print("═" * 60)
-        rows = []
-        for ret, m in all_metrics.items():
-            rows.append({
-                "Retriever":    ret,
-                "BERTScore F1": round(m.get("bertscore_f1", 0), 4),
-                "Token F1":     round(m.get("token_f1", 0), 4),
-                "ROUGE-L":      round(m.get("rouge_l", 0), 4),
-                "Exact Match":  round(m.get("exact_match", 0), 4),
-            })
-        df = pd.DataFrame(rows)
-        print(df.to_string(index=False))
-        df.to_csv(output_dir / "qa_comparison.csv", index=False)
-        print("═" * 60 + "\n")
+    with open(output_dir / "qa_summary.json", "w", encoding="utf-8") as f:
+        json.dump({"evaluation_mode": "mock" if args.mock else "real", "retrievers": all_metrics}, f, indent=2)
+    if any("error" in m for m in all_metrics.values()):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

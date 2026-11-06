@@ -22,5 +22,7 @@
     },
     "retriever": "clip",
     "wall_time_s": 0.0
-  }
+  },
+  "audit_status": "legacy_unverified_not_model_performance",
+  "audit_note": "Sample-level content removed. Historical zeros may mean unavailable metrics. No new inference was run to validate these values."
 }

@@ -86,3 +86,6 @@ htmlcov/
 # Raw datasets
 data/mimic-cxr-raw/
 
+
+# Local real evaluation can contain restricted clinical content
+results/real/
